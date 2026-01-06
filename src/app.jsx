@@ -17,7 +17,7 @@ export function App() {
   
   // Load verses and check for saved game state
   useEffect(() => {
-    fetch('/verses.json')
+    fetch(`${import.meta.env.BASE_URL}verses.json`)
       .then(res => res.json())
       .then(data => {
         setVerses(data);
