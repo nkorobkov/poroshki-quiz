@@ -7,6 +7,7 @@ export function Quiz({ verse, onAnswer, questionNumber, totalQuestions }) {
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const inputRef = useRef(null);
+  const buttonRef = useRef(null);
   
   const correctAnswer = verse.lines[3];
   const firstThreeLines = verse.lines.slice(0, 3);
@@ -24,6 +25,26 @@ export function Quiz({ verse, onAnswer, questionNumber, totalQuestions }) {
       }
     }, 100);
   }, [verse]);
+  
+  // Add document-level Enter key handler when result is shown
+  useEffect(() => {
+    if (!showResult) return;
+    
+    const handleEnter = (e) => {
+      if (e.key === 'Enter' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        // Click the submit button to trigger form submission
+        if (buttonRef.current && !buttonRef.current.disabled) {
+          buttonRef.current.click();
+        }
+      }
+    };
+    
+    document.addEventListener('keydown', handleEnter);
+    return () => {
+      document.removeEventListener('keydown', handleEnter);
+    };
+  }, [showResult]);
   
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -86,6 +107,7 @@ export function Quiz({ verse, onAnswer, questionNumber, totalQuestions }) {
         </div>
         
         <button 
+          ref={buttonRef}
           type="submit" 
           disabled={!showResult && !userAnswer.trim()}
           class={`submit-button ${(showResult || userAnswer.trim()) ? 'enabled' : ''}`}
