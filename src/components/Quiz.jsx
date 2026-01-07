@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'preact/hooks';
 import { checkAnswer } from '../utils/verses';
 import { markVerseAsPlayed } from '../utils/storage';
 
-export function Quiz({ verse, onAnswer, questionNumber, totalQuestions }) {
+export function Quiz({ verse, onAnswer, onAnswerSubmitted, questionNumber, totalQuestions }) {
   const [userAnswer, setUserAnswer] = useState('');
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
@@ -60,6 +60,11 @@ export function Quiz({ verse, onAnswer, questionNumber, totalQuestions }) {
       // Mark as played
       const verseId = verse.number !== '-1' ? verse.number : verse.lines[0];
       markVerseAsPlayed(verseId);
+      
+      // Notify parent that answer has been submitted (so it can be saved)
+      if (onAnswerSubmitted) {
+        onAnswerSubmitted(correct);
+      }
     } else {
       // Second submit - continue to next question
       onAnswer(isCorrect);

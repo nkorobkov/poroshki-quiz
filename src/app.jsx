@@ -76,10 +76,25 @@ export function App() {
     }
   };
   
-  const handleAnswer = (isCorrect) => {
+  const handleAnswerSubmitted = (isCorrect) => {
+    // This is called when the user submits their answer (before clicking "Продолжить")
+    // Save the answer immediately so it's preserved if user goes home
     const newAnswers = [...answers, isCorrect];
     setAnswers(newAnswers);
     
+    // Save state with current question still, but with the answer recorded
+    // When they click "Продолжить", we'll advance to next question
+    saveGameState({
+      gameState: 'playing',
+      currentRound: currentRound,
+      currentQuestion: currentQuestion,
+      answers: newAnswers
+    });
+  };
+  
+  const handleAnswer = (isCorrect) => {
+    // This is called when user clicks "Продолжить" after seeing the result
+    // The answer is already saved, now we advance to next question
     if (currentQuestion + 1 < currentRound.length) {
       const nextQuestion = currentQuestion + 1;
       setCurrentQuestion(nextQuestion);
@@ -87,7 +102,7 @@ export function App() {
         gameState: 'playing',
         currentRound: currentRound,
         currentQuestion: nextQuestion,
-        answers: newAnswers
+        answers: answers // answers already includes the current answer
       });
     } else {
       setGameState('finished');
@@ -110,10 +125,18 @@ export function App() {
     e.preventDefault();
     // Save current game state before going home
     if (gameState === 'playing' && currentRound.length > 0) {
+      // If the current question has been answered (treat as if they clicked "Продолжить"),
+      // save as if we've moved to next question
+      const currentQuestionAnswered = answers.length > currentQuestion;
+      let questionToSave = currentQuestion;
+      if (currentQuestionAnswered && currentQuestion + 1 < currentRound.length) {
+        questionToSave = currentQuestion + 1;
+      }
+      
       saveGameState({
         gameState: 'playing',
         currentRound: currentRound,
-        currentQuestion: currentQuestion,
+        currentQuestion: questionToSave,
         answers: answers
       });
     }
@@ -161,6 +184,7 @@ export function App() {
         <Quiz
           verse={currentVerse}
           onAnswer={handleAnswer}
+          onAnswerSubmitted={handleAnswerSubmitted}
           questionNumber={currentQuestion + 1}
           totalQuestions={currentRound.length}
         />
