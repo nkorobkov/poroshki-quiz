@@ -53,3 +53,47 @@ export function checkAnswer(userAnswer, correctAnswer) {
   return normalizedUser === normalizedCorrect;
 }
 
+/**
+ * Generate a round ID from verse numbers (concatenated 2-char IDs)
+ */
+export function generateRoundId(verses) {
+  return verses.map(verse => {
+    const id = getVerseId(verse);
+    // Ensure it's exactly 2 characters (pad if needed, truncate if longer)
+    return id.length >= 2 ? id.substring(0, 2) : id.padEnd(2, '0');
+  }).join('');
+}
+
+/**
+ * Parse a round ID into an array of verse IDs (each 2 characters)
+ */
+export function parseRoundId(roundId) {
+  if (!roundId || roundId.length % 2 !== 0) {
+    return [];
+  }
+  const ids = [];
+  for (let i = 0; i < roundId.length; i += 2) {
+    ids.push(roundId.substring(i, i + 2));
+  }
+  return ids;
+}
+
+/**
+ * Select verses by their IDs (for shared rounds, ignoring played status)
+ */
+export function selectVersesByIds(allVerses, verseIds) {
+  const verseMap = new Map();
+  allVerses.forEach(verse => {
+    const id = getVerseId(verse);
+    // Store both the full ID and the 2-char version for matching
+    const twoCharId = id.length >= 2 ? id.substring(0, 2) : id.padEnd(2, '0');
+    if (!verseMap.has(twoCharId)) {
+      verseMap.set(twoCharId, verse);
+    }
+  });
+  
+  return verseIds
+    .map(id => verseMap.get(id))
+    .filter(verse => verse !== undefined);
+}
+

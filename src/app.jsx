@@ -2,7 +2,7 @@ import { useState, useEffect } from 'preact/hooks';
 import { StartScreen } from './components/StartScreen';
 import { Quiz } from './components/Quiz';
 import { Score } from './components/Score';
-import { selectVersesForRound } from './utils/verses';
+import { selectVersesForRound, parseRoundId, selectVersesByIds } from './utils/verses';
 import { clearPlayedVerses, saveGameState, loadGameState, clearGameState } from './utils/storage';
 
 const QUESTIONS_PER_ROUND = 10;
@@ -14,36 +14,50 @@ export function App() {
   const [currentRound, setCurrentRound] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState([]);
+  const [sharedRoundId, setSharedRoundId] = useState(null);
   
   // Load verses and check for saved game state
   useEffect(() => {
+    // Parse query parameter for shared round
+    const urlParams = new URLSearchParams(window.location.search);
+    const roundParam = urlParams.get('round');
+    if (roundParam) {
+      setSharedRoundId(roundParam);
+    }
+    
     fetch(`${import.meta.env.BASE_URL}verses.json`)
       .then(res => res.json())
       .then(data => {
         setVerses(data);
         setLoading(false);
         
-        // Check for saved game state
-        const savedState = loadGameState();
-        if (savedState && savedState.gameState === 'playing') {
-          // Verify the saved verses still exist
-          const savedVerses = savedState.currentRound.filter(v => 
-            data.some(verse => {
-              const id = verse.number !== '-1' ? verse.number : verse.lines[0];
-              const savedId = v.number !== '-1' ? v.number : v.lines[0];
-              return id === savedId;
-            })
-          );
-          
-          if (savedVerses.length > 0 && savedState.currentQuestion < savedVerses.length) {
-            setCurrentRound(savedVerses);
-            setCurrentQuestion(savedState.currentQuestion);
-            setAnswers(savedState.answers || []);
-            setGameState('playing');
-          } else {
-            // Invalid saved state, clear it
-            clearGameState();
+        // Only check for saved game state if there's no shared round
+        // (shared rounds should abandon existing games)
+        if (!roundParam) {
+          const savedState = loadGameState();
+          if (savedState && savedState.gameState === 'playing') {
+            // Verify the saved verses still exist
+            const savedVerses = savedState.currentRound.filter(v => 
+              data.some(verse => {
+                const id = verse.number !== '-1' ? verse.number : verse.lines[0];
+                const savedId = v.number !== '-1' ? v.number : v.lines[0];
+                return id === savedId;
+              })
+            );
+            
+            if (savedVerses.length > 0 && savedState.currentQuestion < savedVerses.length) {
+              setCurrentRound(savedVerses);
+              setCurrentQuestion(savedState.currentQuestion);
+              setAnswers(savedState.answers || []);
+              setGameState('playing');
+            } else {
+              // Invalid saved state, clear it
+              clearGameState();
+            }
           }
+        } else {
+          // Clear any existing game state when opening a shared round
+          clearGameState();
         }
       })
       .catch(err => {
@@ -53,7 +67,29 @@ export function App() {
   }, []);
   
   const startRound = () => {
-    const roundVerses = selectVersesForRound(verses, QUESTIONS_PER_ROUND);
+    let roundVerses;
+    
+    // If there's a shared round ID, use those verses instead of random selection
+    if (sharedRoundId) {
+      const verseIds = parseRoundId(sharedRoundId);
+      roundVerses = selectVersesByIds(verses, verseIds);
+      
+      // If we couldn't find all verses, fall back to random selection
+      if (roundVerses.length !== verseIds.length) {
+        console.warn('Some verses from shared round not found, using random selection');
+        roundVerses = selectVersesForRound(verses, QUESTIONS_PER_ROUND);
+      }
+      
+      // Clear the shared round ID after using it
+      setSharedRoundId(null);
+      // Remove the query parameter from URL
+      const url = new URL(window.location);
+      url.searchParams.delete('round');
+      window.history.replaceState({}, '', url);
+    } else {
+      roundVerses = selectVersesForRound(verses, QUESTIONS_PER_ROUND);
+    }
+    
     setCurrentRound(roundVerses);
     setCurrentQuestion(0);
     setAnswers([]);
@@ -174,6 +210,7 @@ export function App() {
           total={currentRound.length}
           onNewRound={handleNewRound}
           totalVerses={verses.length}
+          currentRound={currentRound}
         />
       );
     }
